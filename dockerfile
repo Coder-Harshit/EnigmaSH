@@ -1,25 +1,32 @@
-FROM alpine:latest AS builder
+# Stage 1: Build the Enigmash application
+FROM rust:alpine AS builder
 
 # Set working directory for build context
 WORKDIR /app
 
-COPY src/*.rs .
+# Copy the Cargo.toml and Cargo.lock if available
+COPY Cargo.toml Cargo.lock ./
 
-# Install Rust toolchain (multi-stage build for smaller image)
-RUN apk add --no-cache --virtual .rust-toolchain \
-    rustc \
-    cargo \
-    gcc
+# Build dependencies only
+RUN cargo build --release || true
+
+# Now copy the rest of the source code
+COPY src ./src
 
 # Build the Enigmash application in release mode
-WORKDIR /app
 RUN cargo build --release
 
 # Final image (smaller, no build tools)
 FROM alpine:latest
 
-# Copy the compiled binary
-COPY target/release/enigmash .
+# Set working directory
+WORKDIR /app
 
-# Set the entrypoint to run your shell program
+# Copy the compiled binary from the builder stage
+COPY --from=builder /app/target/release/enigmash .
+
+# # Ensure the binary has execution permissions
+# RUN chmod +x /app/enigmash
+
+# Set the entrypoint to run your binary
 ENTRYPOINT ["./enigmash"]
