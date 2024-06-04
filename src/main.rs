@@ -7,7 +7,15 @@ fn main() {
     loop{
         print!("EnigmaSH> ");
         io::stdout().flush().expect("failed to push STDOUT");
-        io::stdin().read_line(&mut input).expect("Failed to read input");
+        if let Ok(bytes_read) = io::stdin().read_line(&mut input) {
+            if bytes_read == 1 { // Empty line (only newline character)
+                input.clear();
+                continue;
+            }
+        } else {
+            eprintln!("Failed to read input");
+            break;
+        }
         let mut tokens = input.trim().split_whitespace();
         let command = tokens.next().expect("No Command Found");
         // let mut args = tokens.collect::<Vec<_>>();
@@ -38,19 +46,23 @@ fn main() {
                 io::stdout().flush().expect("Failed to flush STDOUT");
             },
             _ => {
-                // // Handle other commands/external programs here (optional)
-                // println!("Unknown command. Type 'help' for a list of available commands.");
                 let output = Command::new(command)
-                    .args(args.as_slice())
-                    .output()
-                    .expect("Failed to execute process");
+                    .args(&args)
+                    .output();
 
-                if output.status.success(){
-                    let stdout = String::from_utf8_lossy(&output.stdout);
-                    println!("{stdout}");
-                }else{
-                    let stderr = String::from_utf8_lossy(&output.stderr);
-                    eprintln!("Error: {stderr}");
+                match output {
+                    Ok(output) => {
+                        if output.status.success() {
+                            let stdout = String::from_utf8_lossy(&output.stdout);
+                            print!("{stdout}");
+                        } else {
+                            let stderr = String::from_utf8_lossy(&output.stderr);
+                            eprintln!("Error: {stderr}");
+                        }
+                    },
+                    Err(e) => {
+                        eprintln!("Failed to execute command: {}", e);
+                    }
                 }
             },
         }
