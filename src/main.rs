@@ -1,3 +1,4 @@
+use std::env;
 use std::io::{self, Write};
 use std::process::Command;
 
@@ -8,7 +9,8 @@ fn main() {
         print!("EnigmaSH> ");
         io::stdout().flush().expect("failed to push STDOUT");
         if let Ok(bytes_read) = io::stdin().read_line(&mut input) {
-            if bytes_read == 1 { // Empty line (only newline character)
+            if bytes_read == 1 { 
+                // Empty line (only newline character)
                 input.clear();
                 continue;
             }
@@ -17,7 +19,8 @@ fn main() {
             break;
         }
         let mut tokens = input.trim().split_whitespace();
-        let command = tokens.next().expect("No Command Found");
+        // let command = tokens.next().expect("No Command Found");
+        let command = tokens.next().unwrap_or("");
         // let mut args = tokens.collect::<Vec<_>>();
         let args = tokens.collect::<Vec<_>>();
 
@@ -45,9 +48,19 @@ fn main() {
                 print!("\x1B[2J\x1B[1;1H"); // Clear screen and move cursor to top-left
                 io::stdout().flush().expect("Failed to flush STDOUT");
             },
+            "cd" => {
+                if args.is_empty() {
+                    eprintln!("cd: missing argument");
+                } else {
+                    let new_dir = args[0];
+                    if let Err(e) = env::set_current_dir(new_dir) {
+                        eprintln!("cd: {}", e);
+                    }
+                }
+            },
             _ => {
                 let output = Command::new(command)
-                    .args(&args)
+                    .args(args.as_slice())
                     .output();
 
                 match output {
