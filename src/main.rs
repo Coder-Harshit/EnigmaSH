@@ -11,37 +11,52 @@ fn get_user_input() -> Result<String, io::Error> {
 }
 
 fn parse_input(input: &str) -> (String, Vec<String>, Option<String>, Option<String>, bool) {
-    let tokens: Vec<_> = input.trim().split_whitespace().collect();
     let mut command_args = Vec::new();
     let mut output_file: Option<String> = None;
     let mut input_file: Option<String> = None;
     let mut append_mode = false;
+
+    let mut tokens = input.split_whitespace();
+    let mut inside_quotes = false;
+    let mut quoted_arg = String::new();
+
     // time to seprate arguments based on their types (I/O file arg or just cmd args)
-    let mut i = 0;
-    while i < tokens.len() {
-        match tokens[i] {
-            ">" => {
-                if i + 1 < tokens.len() {
-                    output_file = Some(tokens[i + 1].to_string());
-                    i += 1;
+    while let Some(token) = tokens.next() {
+        if token.starts_with('"') && token.ends_with('"') {
+            command_args.push(token.trim_matches('"').to_string());
+        } else if token.starts_with('"') {
+            inside_quotes = true;
+            quoted_arg.push_str(token);
+            quoted_arg.push(' ');
+        } else if token.ends_with('"') {
+            inside_quotes = false;
+            quoted_arg.push_str(token);
+            command_args.push(quoted_arg.trim_matches('"').to_string());
+            quoted_arg.clear();
+        } else if inside_quotes {
+            quoted_arg.push_str(token);
+            quoted_arg.push(' ');
+        } else {
+            match token {
+                ">" => {
+                    if let Some(filename) = tokens.next() {
+                        output_file = Some(filename.to_string());
+                    }
                 }
-            },
-            ">>" => {
-                if i + 1 < tokens.len() {
-                    output_file = Some(tokens[i + 1].to_string());
-                    append_mode = true;
-                    i += 1;
+                ">>" => {
+                    if let Some(filename) = tokens.next() {
+                        output_file = Some(filename.to_string());
+                        append_mode = true;
+                    }
                 }
-            },
-            "<" => {
-                if i + 1 < tokens.len() {
-                    input_file = Some(tokens[i + 1].to_string());
-                    i += 1;
+                "<" => {
+                    if let Some(filename) = tokens.next() {
+                        input_file = Some(filename.to_string());
+                    }
                 }
-            },
-            _ => command_args.push(tokens[i].to_string()),
+                _ => command_args.push(token.to_string()),
+            }
         }
-        i += 1;
     }
     // let command = tokens.first().expect("No Command Found").to_string(); // Use first()
     // (command, command_args, output_file, input_file)
